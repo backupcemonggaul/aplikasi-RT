@@ -38,7 +38,6 @@ import {
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
 import { id as localeID } from 'date-fns/locale';
-import { GoogleGenAI, Type } from "@google/genai";
 
 import { 
   onAuthStateChanged, 
@@ -104,8 +103,6 @@ const CURRENCY_FORMATTER = new Intl.NumberFormat('id-ID', {
   currency: 'IDR',
   minimumFractionDigits: 0
 });
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -1643,7 +1640,6 @@ function ResidentForm({
 
 function VoiceInputButton({ onParsed }: { onParsed: (data: any) => void }) {
   const [isListening, setIsListening] = useState(false);
-  const [isParsing, setIsParsing] = useState(false);
 
   const startListening = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -1661,51 +1657,42 @@ function VoiceInputButton({ onParsed }: { onParsed: (data: any) => void }) {
     recognition.onend = () => setIsListening(false);
     recognition.onerror = () => setIsListening(false);
 
-    recognition.onresult = async (event: any) => {
+    recognition.onresult = (event: any) => {
       const text = event.results[0][0].transcript;
-      setIsParsing(true);
-      try {
-        const today = format(new Date(), 'yyyy-MM-dd');
-        const prompt = `Ekstrak informasi transaksi keuangan (pemasukan atau pengeluaran RT) dari teks berikut: "${text}".
-        Keluaran harus berupa JSON murni dengan format:
-        {
-          "description": string (uraian singkat),
-          "amount": number (nominal angka saja),
-          "type": "income" | "expense",
-          "date": "YYYY-MM-DD"
-        }
-        Aturan:
-        - Jika ada kata "masuk", "iuran", "terima", asumsikan type="income".
-        - Jika ada kata "beli", "bayar", "keluar", "biaya", asumsikan type="expense".
-        - Jika tidak ada tanggal yang disebutkan, gunakan "${today}".
-        - Jika nominal disebutkan dalam kata-kata (misal: sepuluh ribu), konversi ke angka (10000).`;
-
-        const result = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                description: { type: Type.STRING },
-                amount: { type: Type.NUMBER },
-                type: { type: Type.STRING, enum: ["income", "expense"] },
-                date: { type: Type.STRING }
-              },
-              required: ["description", "amount", "type", "date"]
-            }
-          }
-        });
-
-        const parsed = JSON.parse(result.text || '{}');
-        onParsed(parsed);
-      } catch (error) {
-        console.error("Gemini Error:", error);
-        alert("Gagal memproses suara. Silakan coba input manual.");
-      } finally {
-        setIsParsing(false);
+      const lowerText = text.toLowerCase();
+      
+      // LOGIKA PARSING LOKAL (TANPA API)
+      
+      // 1. Deteksi Tipe (Pemasukan vs Pengeluaran)
+      let type = 'expense';
+      const incomeKeywords = ['masuk', 'iuran', 'terima', 'donasi', 'setoran', 'saldo'];
+      if (incomeKeywords.some(kw => lowerText.includes(kw))) {
+        type = 'income';
       }
+
+      // 2. Ekstrak Nominal (Angka)
+      // Membersihkan titik/koma yang biasa muncul di pengenalan suara Indonesia (misal: 10.000)
+      const digitsOnly = lowerText.replace(/[^\d]/g, '');
+      const amount = parseInt(digitsOnly) || 0;
+
+      // 3. Deteksi Tanggal Sederhana
+      let dateStr = format(new Date(), 'yyyy-MM-dd');
+      if (lowerText.includes('kemarin')) {
+        const d = new Date();
+        d.setDate(d.getDate() - 1);
+        dateStr = format(d, 'yyyy-MM-dd');
+      }
+
+      // 4. Bersihkan Deskripsi
+      // Mengambil kalimat asli tapi merapikan huruf kapital di awal
+      const description = text.charAt(0).toUpperCase() + text.slice(1);
+
+      onParsed({
+        description,
+        amount,
+        type,
+        date: dateStr
+      });
     };
 
     recognition.start();
@@ -1716,20 +1703,17 @@ function VoiceInputButton({ onParsed }: { onParsed: (data: any) => void }) {
       variant="outline" 
       size="sm" 
       onClick={startListening} 
-      disabled={isListening || isParsing}
+      disabled={isListening}
       className={`rounded-full h-8 px-3 flex items-center gap-1.5 transition-all
-        ${isListening ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 
-          isParsing ? 'bg-blue-50 text-blue-600 border-blue-200' : 'hover:bg-slate-100'}`}
+        ${isListening ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'hover:bg-slate-100'}`}
     >
-      {isParsing ? (
-        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-      ) : isListening ? (
+      {isListening ? (
         <MicOff className="w-3.5 h-3.5" />
       ) : (
         <Mic className="w-3.5 h-3.5" />
       )}
       <span className="text-[10px] font-bold uppercase tracking-tight">
-        {isParsing ? 'Memproses...' : isListening ? 'Mendengarkan...' : 'Input Suara'}
+        {isListening ? 'Mendengarkan...' : 'Input Suara (Lokal)'}
       </span>
     </Button>
   );
