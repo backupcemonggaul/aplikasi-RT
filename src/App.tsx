@@ -19,7 +19,10 @@ import {
   Filter,
   UserPlus,
   ShieldCheck,
-  Users
+  Users,
+  Menu,
+  X,
+  Edit
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
 import { id as localeID } from 'date-fns/locale';
@@ -92,6 +95,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [activeTab, setActiveTab] = useState('summary');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Data State
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -226,45 +230,70 @@ export default function App() {
   }, [cashEntries, residents.length]);
 
   return (
-    <div className="flex min-h-screen bg-slate-100 font-sans text-slate-900">
-      {/* Sidebar - Fixed 240px */}
-      <aside className="w-[240px] bg-slate-900 text-white flex flex-col p-5 sticky top-0 h-screen shrink-0">
-        <div className="flex items-center gap-2 mb-10">
+    <div className="flex min-h-screen bg-slate-100 font-sans text-slate-900 overflow-x-hidden">
+      {/* Mobile Header */}
+      <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-slate-900 text-white flex items-center justify-between px-4 z-40">
+        <div className="flex items-center gap-2">
+          <div className="bg-blue-600 p-1.5 rounded-lg">
+            <Receipt className="w-4 h-4" />
+          </div>
+          <span className="font-extrabold text-sm tracking-tight uppercase">KAS RT TRANSMARIN</span>
+        </div>
+        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-1">
+          {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
+      </div>
+
+      {/* Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden" 
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-[240px] bg-slate-900 text-white flex flex-col p-5 transition-transform duration-300 transform shrink-0
+        md:translate-x-0 md:static md:h-screen
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <div className="hidden md:flex items-center gap-2 mb-10">
           <div className="bg-blue-600 p-1.5 rounded-lg">
             <Receipt className="w-5 h-5" />
           </div>
-          <span className="font-extrabold text-[15px] tracking-tight">KAS RT TRANSMARIN</span>
+          <span className="font-extrabold text-[15px] tracking-tight uppercase">KAS RT TRANSMARIN</span>
         </div>
 
-        <nav className="space-y-1 flex-1">
+        <nav className="space-y-1 flex-1 mt-14 md:mt-0">
           <SidebarItem 
             active={activeTab === 'summary'} 
-            onClick={() => setActiveTab('summary')} 
+            onClick={() => { setActiveTab('summary'); setIsSidebarOpen(false); }} 
             icon={<BookOpen className="w-4 h-4" />} 
             label="Ringkasan" 
           />
           <SidebarItem 
             active={activeTab === 'iuran'} 
-            onClick={() => setActiveTab('iuran')} 
+            onClick={() => { setActiveTab('iuran'); setIsSidebarOpen(false); }} 
             icon={<Receipt className="w-4 h-4" />} 
             label="Matriks Iuran" 
           />
           <SidebarItem 
             active={activeTab === 'cashbook'} 
-            onClick={() => setActiveTab('cashbook')} 
+            onClick={() => { setActiveTab('cashbook'); setIsSidebarOpen(false); }} 
             icon={<FileText className="w-4 h-4" />} 
             label="Buku Kas Umum" 
           />
           <SidebarItem 
             active={activeTab === 'residents'} 
-            onClick={() => setActiveTab('residents')} 
+            onClick={() => { setActiveTab('residents'); setIsSidebarOpen(false); }} 
             icon={<UserPlus className="w-4 h-4" />} 
             label="Warga & Properti" 
           />
           {appUser?.isActive && (
             <SidebarItem 
               active={activeTab === 'admin'} 
-              onClick={() => setActiveTab('admin')} 
+              onClick={() => { setActiveTab('admin'); setIsSidebarOpen(false); }} 
               icon={<ShieldCheck className="w-4 h-4" />} 
               label="Manajemen Admin" 
             />
@@ -302,10 +331,10 @@ export default function App() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-6 grid grid-rows-[auto_auto_1fr] gap-6 overflow-hidden">
-        <header className="flex justify-between items-center">
-          <h1 className="text-xl font-extrabold tracking-tight">Dashboard Keuangan Tahunan</h1>
-          <div className="flex items-center gap-2">
+      <main className="flex-1 p-4 md:p-6 grid grid-rows-[auto_auto_1fr] gap-4 md:gap-6 overflow-hidden mt-14 md:mt-0">
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <h1 className="text-lg md:text-xl font-extrabold tracking-tight">Dashboard Keuangan Tahunan</h1>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
               <SelectTrigger className="h-8 w-[120px] bg-white border-slate-200 text-xs font-bold">
                 <SelectValue />
@@ -321,11 +350,11 @@ export default function App() {
         </header>
 
         {/* Global Stats Row */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5">
            <StatCard label="Saldo Kas RT" value={CURRENCY_FORMATTER.format(stats.totalBalance)} valueColor="text-emerald-500" />
-           <StatCard label="Target Iuran (Bln Ini)" value={CURRENCY_FORMATTER.format(residents.length * 15000)} />
-           <StatCard label="Capaian Realisasi" value={`${stats.realization}%`} />
-           <StatCard label="Pengeluaran (Bln Ini)" value={CURRENCY_FORMATTER.format(stats.monthlyExpense)} valueColor="text-rose-500" />
+           <StatCard label="Target (Bln Ini)" value={CURRENCY_FORMATTER.format(residents.length * 15000)} />
+           <StatCard label="Capaian" value={`${stats.realization}%`} />
+           <StatCard label="Keluar (Bln Ini)" value={CURRENCY_FORMATTER.format(stats.monthlyExpense)} valueColor="text-rose-500" />
         </div>
 
         {/* Content Tabs Content Replacements */}
@@ -421,8 +450,8 @@ function IuranTable({ residents, payments, year }: { residents: Resident[], paym
   }, [residents, payments, year]);
 
   return (
-    <div className="text-[11px]">
-      <Table>
+    <div className="text-[11px] overflow-x-auto relative">
+      <Table className="min-w-[700px]">
         <TableHeader className="bg-slate-50 sticky top-0 z-20 shadow-sm border-b-2 border-slate-200 uppercase font-black text-slate-400">
           <TableRow>
             <TableHead className="w-[140px] pl-4 sticky left-0 bg-slate-50 z-30">Nama Warga</TableHead>
@@ -491,29 +520,32 @@ function AnnouncementList({ announcements, isAdmin }: { announcements: Announcem
 function ResidentList({ residents, isAdmin }: { residents: Resident[], isAdmin: boolean }) {
   const handleDelete = async (id: string) => {
     if (confirm('Hapus warga?')) await deleteDoc(doc(db, 'residents', id));
-  };
-
-  return (
-    <div className="p-0">
+  };   return (
+    <div className="p-0 overflow-x-auto">
       <Table>
         <TableHeader className="bg-slate-50 uppercase text-[10px] font-black text-slate-400 tracking-widest">
            <TableRow>
               <TableHead className="pl-4">Nama</TableHead>
               <TableHead>Alamat</TableHead>
-              <TableHead className="text-right pr-4"></TableHead>
+              <TableHead className="text-right pr-4">Aksi</TableHead>
            </TableRow>
         </TableHeader>
         <TableBody>
            {residents.map(r => (
              <TableRow key={r.id} className="text-xs group">
-                <TableCell className="pl-4 font-bold text-slate-700">{r.name}</TableCell>
-                <TableCell className="font-mono text-slate-400">Blok {r.block}/{r.number}</TableCell>
+                <TableCell className="pl-4 font-bold text-slate-700 whitespace-nowrap">{r.name}</TableCell>
+                <TableCell className="font-mono text-slate-400 whitespace-nowrap">Blok {r.block}/{r.number}</TableCell>
                 <TableCell className="text-right pr-4">
-                  {isAdmin && (
-                    <button onClick={() => handleDelete(r.id)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+                  <div className="flex items-center justify-end gap-1">
+                    {isAdmin && (
+                      <>
+                        <EditResidentDialog resident={r} />
+                        <button onClick={() => handleDelete(r.id)} className="p-1 text-slate-300 hover:text-red-500 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </TableCell>
              </TableRow>
            ))}
@@ -648,14 +680,28 @@ function PayIuranForm({ residents, currentPayments, onSuccess }: { residents: Re
 
       <div className="grid gap-5">
         <div className="grid gap-2">
-          <Label>Warga</Label>
+          <Label className="text-[10px] uppercase font-black text-slate-400">Pilih Warga</Label>
           <Select value={residentId} onValueChange={setResidentId}>
-            <SelectTrigger className="bg-slate-50 border-none">
-              <SelectValue placeholder="Pilih Warga" />
+            <SelectTrigger className="h-11 bg-slate-50 border-none w-full">
+              <SelectValue>
+                {resident ? (
+                  <span className="flex items-center gap-2">
+                    <span className="font-bold">{resident.name}</span>
+                    <span className="text-slate-400 text-[10px] font-mono">Blok {resident.block}/{resident.number}</span>
+                  </span>
+                ) : (
+                  <span className="text-slate-400">Pilih Nama Warga</span>
+                )}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {residents.map(r => (
-                <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                <SelectItem key={r.id} value={r.id}>
+                  <div className="flex flex-col">
+                    <span className="font-bold">{r.name}</span>
+                    <span className="text-[10px] opacity-70">Blok {r.block}/{r.number}</span>
+                  </div>
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -961,8 +1007,8 @@ function AdminManagement({ users, currentUserUid }: { users: AppUser[], currentU
   };
 
   return (
-    <div className="p-0">
-      <Table>
+    <div className="p-0 overflow-x-auto">
+      <Table className="min-w-[600px]">
         <TableHeader className="bg-slate-50 uppercase text-[10px] font-black text-slate-400 tracking-widest">
            <TableRow>
               <TableHead className="pl-4">Admin</TableHead>
@@ -1086,42 +1132,93 @@ function AddResidentDialog() {
 
   const handleAdd = async () => {
     if (!name) return;
-    await addDoc(collection(db, 'residents'), { name, block, number });
+    await addDoc(collection(db, 'residents'), { name, block, number: (number || '-') });
     setOpen(false);
-    setName('');
-    setBlock('');
-    setNumber('');
+    setName(''); setBlock(''); setNumber('');
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm" className="rounded-lg border-slate-200" />}>
-        <UserPlus className="w-4 h-4 mr-2" /> Tambah Warga
+      <DialogTrigger render={<Button variant="outline" size="sm" className="rounded-xl border-slate-200 h-9 font-bold text-xs" />}>
+        <UserPlus className="w-4 h-4 mr-2" /> TAMBAH WARGA
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Data Warga Baru</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label>Nama Lengkap</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="Nama Warga" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label>Blok</Label>
-              <Input value={block} onChange={e => setBlock(e.target.value)} placeholder="A" />
-            </div>
-            <div className="grid gap-2">
-              <Label>Nomor Rumah</Label>
-              <Input value={number} onChange={e => setNumber(e.target.value)} placeholder="01" />
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button onClick={handleAdd} className="w-full">Daftarkan Warga</Button>
-        </DialogFooter>
+      <DialogContent className="sm:max-w-[425px]">
+        <ResidentForm 
+          title="Data Warga Baru" 
+          submitLabel="Daftarkan Warga"
+          onSave={handleAdd}
+          name={name} setName={setName}
+          block={block} setBlock={setBlock}
+          number={number} setNumber={setNumber}
+        />
       </DialogContent>
     </Dialog>
+  );
+}
+
+function EditResidentDialog({ resident }: { resident: Resident }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(resident.name);
+  const [block, setBlock] = useState(resident.block || '');
+  const [number, setNumber] = useState(resident.number || '');
+
+  const handleEdit = async () => {
+    if (!name) return;
+    await updateDoc(doc(db, 'residents', resident.id), { name, block, number: (number || '-') });
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<button className="p-1 text-slate-300 hover:text-blue-600 transition-colors" />}>
+        <Edit className="w-3.5 h-3.5" />
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <ResidentForm 
+          title="Edit Data Warga" 
+          submitLabel="Simpan Perubahan"
+          onSave={handleEdit}
+          name={name} setName={setName}
+          block={block} setBlock={setBlock}
+          number={number} setNumber={setNumber}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ResidentForm({ 
+  title, 
+  submitLabel, 
+  onSave, 
+  name, setName, 
+  block, setBlock, 
+  number, setNumber 
+}: any) {
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle className="text-xl font-bold">{title}</DialogTitle>
+      </DialogHeader>
+      <div className="grid gap-5 py-4">
+        <div className="grid gap-2">
+          <Label className="text-[10px] uppercase font-black text-slate-400">Nama Lengkap</Label>
+          <Input value={name} onChange={e => setName(e.target.value)} placeholder="Nama Warga" className="h-11 bg-slate-50 border-none" />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label className="text-[10px] uppercase font-black text-slate-400">Blok</Label>
+            <Input value={block} onChange={e => setBlock(e.target.value)} placeholder="A" className="h-11 bg-slate-50 border-none" />
+          </div>
+          <div className="grid gap-2">
+            <Label className="text-[10px] uppercase font-black text-slate-400">Nomor Rumah</Label>
+            <Input value={number} onChange={e => setNumber(e.target.value)} placeholder="01" className="h-11 bg-slate-50 border-none" />
+          </div>
+        </div>
+      </div>
+      <DialogFooter>
+        <Button onClick={onSave} className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-sm font-bold rounded-xl shadow-lg shadow-blue-100">{submitLabel}</Button>
+      </DialogFooter>
+    </>
   );
 }
