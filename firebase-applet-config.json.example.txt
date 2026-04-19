@@ -1,0 +1,10 @@
+{
+  "projectId": "xxx",
+  "appId": "1:487818806955:web:xxx",
+  "apiKey": "AIzaSyC2nHBAK1bmgJpUXIwbw9yw9ccZ-xxx",
+  "authDomain": "xxx.web.app",
+  "firestoreDatabaseId": "ai-studio-2020a428-d5b7-4d44-875d-xxx",
+  "storageBucket": "xxx.firebasestorage.app",
+  "messagingSenderId": "48781xxxx",
+  "measurementId": ""
+}
